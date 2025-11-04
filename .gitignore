@@ -1,0 +1,6 @@
+.env
+output.txt
+tool.log
+venv/
+__pycache__
+.main.py.swp
