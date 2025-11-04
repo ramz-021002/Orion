@@ -10,12 +10,12 @@ import requests
 import markdown
 from typing import Callable, Optional
 import google.genai as genai
-#echo "# MESSAGE" >> README.md
 import smtplib
 import logging
+from dotenv import load_dotenv
 import getMaliciousIps
 
-#load_dotenv()
+load_dotenv()
 
 logging.basicConfig(filename="tool.log",
                     format='%(asctime)s %(message)s',
