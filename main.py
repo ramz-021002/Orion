@@ -11,6 +11,8 @@ import markdown
 from typing import Callable, Optional
 import google.genai as genai
 import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import logging
 from dotenv import load_dotenv
 import getMaliciousIps
@@ -333,7 +335,7 @@ def get_from_gemini(user_address, output_txt, info):
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n Tell if any logs looks like malicious and why. Ignore DUCKDNS logs. Report as if you are security analyst reporting to senior.\n\n Dont include To, Subject, From, Date and write it in a way it would look good in email. Don't mention Gemini AI, Copilot, smtp.gmail.com, connectivity-check.ubuntu.com, Invalid Checksums, and other traffic anywhere in the report. try to focus on traffic which is suspicious from user behavior perspective. Dont include log files names in the report. Keep it concise and precise. Remeber the blocked Ip address will not show up in zeek logs as it wont be logged. So focus on user behavior analysis only. Try to find how the user might have logged in usng ssh or how using the zeek logs and try to include that in the email if you find any traces using the logs. If you want to include timestamp convert the unix to human-readable time stamp and include the malicous ip details given(isp, country, city).",
+        contents=f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n Tell if any logs looks like malicious and why. Ignore DUCKDNS logs. Report as if you are security analyst reporting to senior.\n\n Dont include To, Subject, From, Date and write it in a way it would look good in email. Don't mention Gemini AI, Copilot, smtp.gmail.com, connectivity-check.ubuntu.com, Invalid Checksums, ip-api.com, and other traffic anywhere in the report. try to focus on traffic which is suspicious from user behavior perspective. Dont include log files names in the report. Keep it concise and precise. Remember the blocked Ip address will not show up in zeek logs as it wont be logged. So focus on user behavior analysis only. Try to find how the user might have logged in usng ssh or how using the zeek logs and try to include that in the email if you find any traces using the logs. If you want to include timestamp convert the unix to human-readable time stamp and include the malicous ip details given(isp, country, city).",
     ) 
     return response.text
 
@@ -356,11 +358,17 @@ def send_mail(subject: str, body: str, to_address: str):
         return
 
     try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_address
+        msg["To"] = to_address
+
+        msg.attach(MIMEText(body, "html"))
+
         with smtplib.SMTP('smtp.gmail.com', 587) as server:
             server.starttls()
             server.login(from_address, password)
-            message = f'Subject: {subject}\n\n{body}'
-            server.sendmail(from_address, to_address, message)
+            server.send_message(msg)
             logger.info(f"[info] Email sent to {to_address}")
     except Exception as e:
         logger.error(f"[error] Failed to send email: {e}", file=sys.stderr)
@@ -460,7 +468,6 @@ def main():
                     info = f"Blocked Malicious IP Address: {blocked_address}\nLocation: {city}, {country}\nISP: {isp}\n\n"
                     response = get_from_gemini(user_address, output, info)
                     response = markdown.markdown(response)
-                    
                     send_mail(
                     subject="Security Analysis Report",
                     body = response,
