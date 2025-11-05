@@ -358,6 +358,7 @@ def send_mail(subject: str, body: str, to_address: str):
         return
 
     try:
+        # Set up email mime
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = from_address
