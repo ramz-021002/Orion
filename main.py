@@ -468,7 +468,7 @@ def main():
                     city, country, isp = get_ip_info(blocked_address)
                     info = f"Blocked Malicious IP Address: {blocked_address}\nLocation: {city}, {country}\nISP: {isp}\n\n"
                     response = get_from_gemini(user_address, output, info)
-                    response = markdown.markdown(response)
+                    response = markdown.markdown(response) # Convert Gemini response to HTML
                     send_mail(
                     subject="Security Analysis Report",
                     body = response,
