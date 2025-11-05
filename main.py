@@ -474,11 +474,11 @@ def main():
                     body = response,
                     to_address="parnandi.2@osu.edu"
                     )
-                    # send_mail(
-                    # subject="Security Analysis Report",
-                    # body=response,
-                    # to_address="sung.260@osu.edu"
-                    # )
+                    send_mail(
+                    subject="Security Analysis Report",
+                    body=response,
+                    to_address="sung.260@osu.edu"
+                    )
                     logger.info("[info] Response sent via email.\n")
                 except Exception as e:
                     response = f"Error getting response from Gemini: {e}"
