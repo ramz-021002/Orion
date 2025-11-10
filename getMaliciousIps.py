@@ -9,7 +9,7 @@ def update_suricata_rules(malicious_ips):
     with open('/var/lib/suricata/rules/block_ips.rules', 'a') as rule_file:
         sid = 100001
         for ip in malicious_ips:
-            rule_file.write(f'drop ip {ip} any -> any any (msg:"Blocked malicious IP {ip}"; sid: {sid}; priority:8; classtype:bad-unknown; rev:1;)\n')
+            rule_file.write(f'drop ip {ip} any -> any any (msg:"Blocked malicious IP"; sid: {sid}; priority:8; classtype:bad-unknown; rev:1;)\n')
             sid += 1
 
 

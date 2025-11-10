@@ -418,9 +418,9 @@ def main():
 
         while True:
             global update_flag
-            day = datetime.datetime.now().day
+            now = datetime.now()
 
-            if day == 1:
+            if now.hour == 0 and now.minute == 0 and now.second == 0 and now.microsecond == 0:
                 if not update_flag:
                     logger.info("Updating Suricata rules with latest malicious IPs...")
                     update_suricata_rules()
