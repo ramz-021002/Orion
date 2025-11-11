@@ -76,7 +76,7 @@ def read_fast_log(file_path: str) -> tuple[str | None, str | None]:
     10/18/2025-19:54:56.851821 [Drop] [**] [1:109975:1] Blocked malicious IP 220.86.113.155 [**] [Classification: Potentially Bad Traffic] [Priority: 8] {ICMP} 220.86.113.155:0 -> 192.168.0.101
     """
     if not os.path.exists(file_path):
-        logger.critical(f"[warn] fast.log not found: {file_path}", file=sys.stderr)
+        logger.critical(f"[warn] fast.log not found: {file_path}")
         return None, None
 
     try:
@@ -89,10 +89,10 @@ def read_fast_log(file_path: str) -> tuple[str | None, str | None]:
                 #print(last_log)
                 return parse_ips_from_fast_log_line(last_log)
     except PermissionError as e:
-        logger.error(f"[error] Permission denied reading fast.log at {file_path}: {e}", file=sys.stderr)
+        logger.error(f"[error] Permission denied reading fast.log at {file_path}: {e}")
         return None, None
     except OSError as e:
-        logger.error(f"[error] Failed to read fast.log at {file_path}: {e}", file=sys.stderr)
+        logger.error(f"[error] Failed to read fast.log at {file_path}: {e}")
         return None, None
 
     return None, None
@@ -182,8 +182,7 @@ def check_zeek_logs(
     except PermissionError as e:
         logger.error(
             f"[error] Permission denied accessing Zeek logs at {log_path}. "
-            f"Add your user to the 'zeek' group or adjust ACLs. Details: {e}",
-            file=sys.stderr,
+            f"Add your user to the 'zeek' group or adjust ACLs. Details: {e}"
         )
         return
     except FileNotFoundError:
@@ -326,9 +325,9 @@ def check_zeek_logs(
                                 print(f"{fname}: {line.strip()}")
                             printed_count += 1
         except PermissionError as e:
-            logger.error(f"[error] Permission denied reading {fpath}: {e}", file=sys.stderr)
+            logger.error(f"[error] Permission denied reading {fpath}: {e}")
         except OSError as e:
-            logger.error(f"[error] Failed reading {fpath}: {e}", file=sys.stderr)
+            logger.error(f"[error] Failed reading {fpath}: {e}")
     # print(f"[info] Zeek log check for IP {ip_address} completed, {printed_count} new lines found.")
     return printed_count
 
@@ -355,7 +354,7 @@ def send_mail(subject: str, body: str, to_address: str):
     password = os.getenv("MAIL_PASSOWORD")
 
     if not from_address or not password:
-        logger.error("[error] Email credentials are not set in environment variables.", file=sys.stderr)
+        logger.error("[error] Email credentials are not set in environment variables.")
         return
 
     try:
@@ -373,7 +372,7 @@ def send_mail(subject: str, body: str, to_address: str):
             server.send_message(msg)
             logger.info(f"[info] Email sent to {to_address}")
     except Exception as e:
-        logger.error(f"[error] Failed to send email: {e}", file=sys.stderr)
+        logger.error(f"[error] Failed to send email: {e}")
 
 def update_suricata_rules():
     os.system("rm /var/lib/suricata/rules/block_ips.rules")
