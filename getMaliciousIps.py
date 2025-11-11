@@ -15,8 +15,8 @@ def update_suricata_rules(malicious_ips):
 
 def getMaliciousIps():
     malicious_ips = []
-    api_key = os.getenv(API1)
-    api_key = os.getenv(API2)
+    api_key = os.getenv("API1")
+    #api_key = os.getenv(API2)
     url = 'https://api.abuseipdb.com/api/v2/blacklist'
 
     headers = {

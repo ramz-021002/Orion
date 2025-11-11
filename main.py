@@ -104,7 +104,7 @@ _SEEN_ZEEK_LINES: dict[tuple[str, str], float] = {}
 def check_zeek_logs(
     ip_address: str,
     log_path: str,
-    minutes: float = 5.0,
+    minutes: float = 10.0,
     header: str | None = None,
     emit: Optional[Callable[[str], None]] = None,
 ) -> int:
@@ -186,10 +186,10 @@ def check_zeek_logs(
         )
         return
     except FileNotFoundError:
-        print(f"[warn] Zeek log directory not found: {log_path}", file=sys.stderr)
+        logger.info(f"[warn] Zeek log directory not found: {log_path}")
         return
     except OSError as e:
-        print(f"[error] Failed to list Zeek log directory {log_path}: {e}", file=sys.stderr)
+        logger.info(f"[error] Failed to list Zeek log directory {log_path}: {e}")
         return
 
     printed_count = 0
@@ -335,7 +335,7 @@ def get_from_gemini(user_address, output_txt, info):
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n Tell if any logs looks like malicious and why. Ignore DUCKDNS logs. Report as if you are security analyst reporting to senior.\n\n Do not include To, Subject, From, Date and write it in a way it would look good in email. Don't mention Gemini AI, Copilot, smtp.gmail.com, connectivity-check.ubuntu.com, Invalid Checksums, ip-api.com, and other traffic anywhere in the report. Try to focus on traffic which is suspicious and related to malicious IP given from user behavior perspective. Do not include log files names in the report. Keep it concise and precise. Remember the blocked Ip address may or may not show up in zeek logs. So focus on user behavior analysis only. Try to find how the user might have logged in usng ssh or how using the zeek logs and try to include that in the email if you find any traces using the logs. If you want to include timestamp convert the unix to human-readable time stamp and include the malicous ip details given(isp, country, city).",
+        contents=f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n Tell if any logs looks like malicious and why. Ignore tailscale logs. Report as if you are security analyst reporting to senior.\n\n Do not include To, Subject, From, Date and write it in a way it would look good in email. Don't mention Gemini AI, Copilot, smtp.gmail.com, connectivity-check.ubuntu.com, Invalid Checksums, ip-api.com, and other traffic anywhere in the report. Try to focus on traffic which is suspicious and related to malicious IP given from user behavior perspective. Do not include log files names in the report. Keep it concise and precise. Remember the blocked Ip address may or may not show up in zeek logs. So focus on user behavior analysis only. Try to find how the user might have logged in usng ssh or how using the zeek logs and try to include that in the email if you find any traces using the logs. If you want to include timestamp convert the unix to human-readable time stamp and include the malicous ip details given(isp, country, city).",
     ) 
     return response.text
 
@@ -375,7 +375,8 @@ def send_mail(subject: str, body: str, to_address: str):
         logger.error(f"[error] Failed to send email: {e}")
 
 def update_suricata_rules():
-    os.system("rm /var/lib/suricata/rules/block_ips.rules")
+    
+    os.system("rm -f /var/lib/suricata/rules/block_ips.rules")
     getMaliciousIps.getMaliciousIps()
     os.system("suricata-update")
     os.system("systemctl restart suricata")
@@ -420,10 +421,11 @@ def main():
             global update_flag
             now = datetime.datetime.now()
 
-            if now.hour == 0 and now.minute == 0 and now.second == 0 and now.microsecond == 0:
+            if now.hour == 0 and now.minute == 0 and now.second >= 0:
                 if not update_flag:
                     logger.info("Updating Suricata rules with latest malicious IPs...")
                     update_suricata_rules()
+                    logger.info(f"Suricata rules updated. {update_flag}")
                     update_flag = True
             else:
                 update_flag = False
