@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import re
@@ -418,7 +419,7 @@ def main():
 
         while True:
             global update_flag
-            now = datetime.now()
+            now = datetime.datetime.now()
 
             if now.hour == 0 and now.minute == 0 and now.second == 0 and now.microsecond == 0:
                 if not update_flag:

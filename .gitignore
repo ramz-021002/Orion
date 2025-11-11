@@ -4,3 +4,5 @@ tool.log
 venv/
 __pycache__
 .main.py.swp
+error.log
+output.log
