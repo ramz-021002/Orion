@@ -438,7 +438,7 @@ def main():
             else:
                 # print(f"[info] Reading Suricata fast.log at {args.fast_log}...")
                 blocked_address, user_address = read_fast_log(args.fast_log)
-                logger.info(f"[info] Parsed blocked IP: {blocked_address}, user IP: {user_address}")
+                #logger.info(f"[info] Parsed blocked IP: {blocked_address}, user IP: {user_address}")
 
             # Report parsed IPs for visibility, but only print headers when there are new matching log lines
             if blocked_address or user_address:
