@@ -6,3 +6,6 @@ __pycache__
 .main.py.swp
 error.log
 output.log
+main_test.py
+getMaliciousIps_test.py 
+malicious_ips.csv

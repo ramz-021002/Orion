@@ -339,6 +339,44 @@ def get_from_gemini(user_address, output_txt, info):
     ) 
     return response.text
 
+
+def get_from_chatgpt(user_address, output_txt, info):
+    """Fallback to OpenAI Chat Completions API (gpt-3.5-turbo) when Gemini is unavailable.
+
+    Requires `OPENAI_API_KEY` in environment.
+    Returns the assistant text.
+    """
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        raise RuntimeError("OPENAI_API_KEY not set for ChatGPT fallback")
+
+    prompt = (
+        f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n"
+        "Tell if any logs looks like malicious and why. Ignore tailscale logs. Report as if you are a security analyst reporting to senior."
+        "Do not include To, Subject, From, Date and write it in a way it would look good in email. Don't mention any internal service names."
+        "Focus on suspicious traffic related to the malicious IP from a user behavior perspective. Keep it concise and precise."
+    )
+
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {"role": "system", "content": "You are a helpful security analyst."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {openai_key}",
+        "Content-Type": "application/json",
+    }
+
+    resp = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+    # Extract assistant message
+    return data["choices"][0]["message"]["content"].strip()
+
 def get_ip_info(ip_address):
     url = f'http://ip-api.com/json/{ip_address}'
     response = requests.get(url)
@@ -469,21 +507,40 @@ def main():
                 try:
                     city, country, isp = get_ip_info(blocked_address)
                     info = f"Blocked Malicious IP Address: {blocked_address}\nLocation: {city}, {country}\nISP: {isp}\n\n"
-                    response = get_from_gemini(user_address, output, info)
-                    response = markdown.markdown(response) # Convert Gemini response to HTML
-                    send_mail(
-                    subject="Security Analysis Report",
-                    body = response,
-                    to_address="parnandi.2@osu.edu"
-                    )
-                    send_mail(
-                    subject="Security Analysis Report",
-                    body=response,
-                    to_address="sung.260@osu.edu"
-                    )
-                    logger.info("[info] Response sent via email.\n")
+
+                    # Try Gemini first
+                    try:
+                        response = get_from_gemini(user_address, output, info)
+                    except Exception as e:
+                        logger.error(f"Error getting response from Gemini: {e}")
+                        errstr = str(e)
+                        # If Gemini reports a 503/UNAVAILABLE overload, fall back to OpenAI Chat completions
+                        if ("503" in errstr) or ("UNAVAILABLE" in errstr) or ("model is overloaded" in errstr.lower()):
+                            try:
+                                logger.info("Gemini unavailable (503). Falling back to OpenAI ChatGPT...")
+                                response = get_from_chatgpt(user_address, output, info)
+                                logger.info("Used ChatGPT fallback for analysis.")
+                            except Exception as e2:
+                                logger.error(f"OpenAI fallback failed: {e2}")
+                                response = ""
+                        else:
+                            response = ""
+
+                    if response:
+                        response = markdown.markdown(response)  # Convert response to HTML
+                        send_mail(
+                            subject="Security Analysis Report",
+                            body=response,
+                            to_address="parnandi.2@osu.edu",
+                        )
+                        send_mail(
+                            subject="Security Analysis Report",
+                            body=response,
+                            to_address="sung.260@osu.edu",
+                        )
+                        logger.info("[info] Response sent via email.\n")
                 except Exception as e:
-                    response = f"Error getting response from Gemini: {e}"
+                    response = f"Error preparing or sending analysis: {e}"
                     logger.error(response)
             if args.once:
                 break
