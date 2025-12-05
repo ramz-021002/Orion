@@ -20,15 +20,15 @@ import getMaliciousIps
 
 load_dotenv()
 
-logging.basicConfig(filename="tool.log",
-                    format='%(asctime)s %(message)s',
-                    filemode='w')
+logging.basicConfig(filename="tool.log", format="%(asctime)s %(message)s", filemode="w")
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 api_key = os.getenv("GEMINI_API_KEY")
 update_flag = False
+
+
 def parse_ips_from_fast_log_line(line: str) -> tuple[str | None, str | None]:
     """Parse a Suricata fast.log line and return (src_ip, dst_ip).
 
@@ -39,17 +39,17 @@ def parse_ips_from_fast_log_line(line: str) -> tuple[str | None, str | None]:
     """
     ipv4_re = r"(?:\d{1,3}\.){3}\d{1,3}"
     try:
-        if '}' in line:
-            after_brace = line.split('}', 1)[1].strip()
+        if "}" in line:
+            after_brace = line.split("}", 1)[1].strip()
             # Try to split around the arrow
-            if '->' in after_brace:
-                left, right = after_brace.split('->', 1)
+            if "->" in after_brace:
+                left, right = after_brace.split("->", 1)
                 left = left.strip()
                 right = right.strip()
-                src_token = left.split()[0] if left else ''
-                dst_token = right.split()[0] if right else ''
-                src_ip = src_token.split(':', 1)[0] if ':' in src_token else src_token
-                dst_ip = dst_token.split(':', 1)[0] if ':' in dst_token else dst_token
+                src_token = left.split()[0] if left else ""
+                dst_token = right.split()[0] if right else ""
+                src_ip = src_token.split(":", 1)[0] if ":" in src_token else src_token
+                dst_ip = dst_token.split(":", 1)[0] if ":" in dst_token else dst_token
                 if re.fullmatch(ipv4_re, src_ip) and re.fullmatch(ipv4_re, dst_ip):
                     return src_ip, dst_ip
                 # Allow partial matches: validate individually
@@ -80,13 +80,17 @@ def read_fast_log(file_path: str) -> tuple[str | None, str | None]:
         return None, None
 
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as file:
             lines = [ln.strip() for ln in file.readlines() if ln.strip()]
             if not lines:
                 return None, None
             last_log = lines[-1]
-            if ('Drop' in last_log) or ('DROP' in last_log) or ("ET CINS Active Threat Intelligence Poor" in last_log):
-                #print(last_log)
+            if (
+                ("Drop" in last_log)
+                or ("DROP" in last_log)
+                or ("ET CINS Active Threat Intelligence Poor" in last_log)
+            ):
+                # print(last_log)
                 return parse_ips_from_fast_log_line(last_log)
     except PermissionError as e:
         logger.error(f"[error] Permission denied reading fast.log at {file_path}: {e}")
@@ -101,6 +105,8 @@ def read_fast_log(file_path: str) -> tuple[str | None, str | None]:
 # Deduplication cache for printed Zeek log lines within the sliding window.
 # Maps (file_path, sha1(line)) -> timestamp (float seconds)
 _SEEN_ZEEK_LINES: dict[tuple[str, str], float] = {}
+
+
 def check_zeek_logs(
     ip_address: str,
     log_path: str,
@@ -142,7 +148,9 @@ def check_zeek_logs(
         for fmt in fmts:
             try:
                 if fmt.endswith("Z") and s.endswith("Z"):
-                    dt = datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+                    dt = datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(
+                        tzinfo=datetime.timezone.utc
+                    )
                 else:
                     dt = datetime.datetime.strptime(s, fmt)
                     if dt.tzinfo is None:
@@ -195,7 +203,7 @@ def check_zeek_logs(
     printed_count = 0
 
     for fname in files:
-        if not fname.endswith('.log') or fname in exculuded:
+        if not fname.endswith(".log") or fname in exculuded:
             continue
         fpath = os.path.join(log_path, fname)
 
@@ -208,20 +216,22 @@ def check_zeek_logs(
             pass
 
         try:
-            with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
+            with open(fpath, "r", encoding="utf-8", errors="replace") as f:
                 # Track Zeek headers per-file
                 fields: list[str] | None = None
                 ts_idx: int | None = None
                 sep: str = "\t"
                 # Special-case: include entire ssh.log contents (deduplicated) regardless of timestamps.
                 # This will emit all non-empty lines from ssh.log using the same deduplication cache.
-                if fname == 'ssh.log':
+                if fname == "ssh.log":
                     for raw_line in f:
                         line = raw_line.rstrip("\n")
                         if not line:
                             continue
                         try:
-                            h = hashlib.sha1(line.encode('utf-8', errors='ignore')).hexdigest()
+                            h = hashlib.sha1(
+                                line.encode("utf-8", errors="ignore")
+                            ).hexdigest()
                             key = (fpath, h)
                             # For ssh.log we don't consult timestamps; just emit if not seen or newer
                             last_ts = _SEEN_ZEEK_LINES.get(key)
@@ -257,26 +267,26 @@ def check_zeek_logs(
                         continue
 
                     # Handle Zeek ASCII headers
-                    if line.startswith('#'):
-                        if line.startswith('#separator'):
+                    if line.startswith("#"):
+                        if line.startswith("#separator"):
                             sep = _decode_separator(line) or "\t"
-                        elif line.startswith('#fields'):
+                        elif line.startswith("#fields"):
                             # '#fields' is space-delimited regardless of data separator
                             parts = line.split()
                             # parts[0] == '#fields'
                             fields = parts[1:] if len(parts) > 1 else None
                             ts_idx = None
-                            if fields and 'ts' in fields:
-                                ts_idx = fields.index('ts')
+                            if fields and "ts" in fields:
+                                ts_idx = fields.index("ts")
                         continue
 
                     ts_val: float | None = None
 
                     # Try JSON logs first
-                    if line.lstrip().startswith('{'):
+                    if line.lstrip().startswith("{"):
                         try:
                             obj = json.loads(line)
-                            ts_raw = obj.get('ts')
+                            ts_raw = obj.get("ts")
                             ts_val = _parse_ts_value(ts_raw)
                         except Exception:
                             ts_val = None
@@ -287,7 +297,7 @@ def check_zeek_logs(
                                 cols = line.split(sep) if sep else line.split()
                                 if 0 <= ts_idx < len(cols):
                                     ts_raw = cols[ts_idx]
-                                    if ts_raw not in (None, '', '-'):
+                                    if ts_raw not in (None, "", "-"):
                                         ts_val = _parse_ts_value(ts_raw)
                             except Exception:
                                 ts_val = None
@@ -299,7 +309,9 @@ def check_zeek_logs(
                     if ip_address in line:
                         # Deduplicate using file path and content hash within time window
                         try:
-                            h = hashlib.sha1(line.encode('utf-8', errors='ignore')).hexdigest()
+                            h = hashlib.sha1(
+                                line.encode("utf-8", errors="ignore")
+                            ).hexdigest()
                             key = (fpath, h)
                             last_ts = _SEEN_ZEEK_LINES.get(key)
                             if last_ts is None or ts_val > last_ts:
@@ -331,12 +343,13 @@ def check_zeek_logs(
     # print(f"[info] Zeek log check for IP {ip_address} completed, {printed_count} new lines found.")
     return printed_count
 
+
 def get_from_gemini(user_address, output_txt, info):
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=f"Suricata has blocked IP address {info} from internal user {user_address}, analyze the following Zeek log output for security insights:\n\n{output_txt}\n\n Tell if any logs looks like malicious and why. Ignore tailscale logs. Report as if you are security analyst reporting to senior.\n\n Do not include To, Subject, From, Date and write it in a way it would look good in email. Don't mention Gemini AI, Copilot, smtp.gmail.com, connectivity-check.ubuntu.com, Invalid Checksums, ip-api.com, and other traffic anywhere in the report. Try to focus on traffic which is suspicious and related to malicious IP given from user behavior perspective. Do not include log files names in the report. Keep it concise and precise. Remember the blocked Ip address may or may not show up in zeek logs. So focus on user behavior analysis only. Try to find how the user might have logged in usng ssh or how using the zeek logs and try to include that in the email if you find any traces using the logs. If you want to include timestamp convert the unix to human-readable time stamp and include the malicous ip details given(isp, country, city).",
-    ) 
+    )
     return response.text
 
 
@@ -371,19 +384,25 @@ def get_from_chatgpt(user_address, output_txt, info):
         "Content-Type": "application/json",
     }
 
-    resp = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+    resp = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=60,
+    )
     resp.raise_for_status()
     data = resp.json()
     # Extract assistant message
     return data["choices"][0]["message"]["content"].strip()
 
+
 def get_ip_info(ip_address):
-    url = f'http://ip-api.com/json/{ip_address}'
+    url = f"http://ip-api.com/json/{ip_address}"
     response = requests.get(url)
     data = response.json()
-    city = data['city']
-    country = data['country']
-    isp = data['isp']
+    city = data["city"]
+    country = data["country"]
+    isp = data["isp"]
     return city, country, isp
 
 
@@ -404,7 +423,7 @@ def send_mail(subject: str, body: str, to_address: str):
 
         msg.attach(MIMEText(body, "html"))
 
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(from_address, password)
             server.send_message(msg)
@@ -412,21 +431,45 @@ def send_mail(subject: str, body: str, to_address: str):
     except Exception as e:
         logger.error(f"[error] Failed to send email: {e}")
 
+
 def update_suricata_rules():
-    
+
     os.system("rm -f /var/lib/suricata/rules/block_ips.rules")
     getMaliciousIps.getMaliciousIps()
     os.system("suricata-update")
     os.system("systemctl restart suricata")
-    
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Correlate Suricata DROP IPs with Zeek logs.')
-    parser.add_argument('--fast-log', default='/var/log/suricata/fast.log', help='Path to Suricata fast.log')
-    parser.add_argument('--zeek-logs', default='/opt/zeek/logs/current', help='Path to Zeek current log directory')
-    parser.add_argument('--interval', type=float, default=5.0, help='Polling interval in seconds')
-    parser.add_argument('--test-ip', default=None, help='Override IP address for testing (skips reading fast.log)')
-    parser.add_argument('--once', action='store_true', help='Run a single iteration and exit')
-    parser.add_argument('--output', default='output.txt', help='File to write results; replaced on new IP output')
+    parser = argparse.ArgumentParser(
+        description="Correlate Suricata DROP IPs with Zeek logs."
+    )
+    parser.add_argument(
+        "--fast-log",
+        default="/var/log/suricata/fast.log",
+        help="Path to Suricata fast.log",
+    )
+    parser.add_argument(
+        "--zeek-logs",
+        default="/opt/zeek/logs/current",
+        help="Path to Zeek current log directory",
+    )
+    parser.add_argument(
+        "--interval", type=float, default=5.0, help="Polling interval in seconds"
+    )
+    parser.add_argument(
+        "--test-ip",
+        default=None,
+        help="Override IP address for testing (skips reading fast.log)",
+    )
+    parser.add_argument(
+        "--once", action="store_true", help="Run a single iteration and exit"
+    )
+    parser.add_argument(
+        "--output",
+        default="output.txt",
+        help="File to write results; replaced on new IP output",
+    )
     args = parser.parse_args()
 
     try:
@@ -439,11 +482,11 @@ def main():
 
             def _emit(msg: str) -> None:
                 nonlocal first_emission_done, last_written_ip
-                mode = 'a'
+                mode = "a"
                 if not first_emission_done and last_written_ip != current_ip:
-                    mode = 'w'  # replace file for new IP
+                    mode = "w"  # replace file for new IP
                 try:
-                    with open(output_path, mode, encoding='utf-8') as fh:
+                    with open(output_path, mode, encoding="utf-8") as fh:
                         fh.write(msg + "\n")
                 except Exception:
                     # Non-fatal: still printed to stdout
@@ -476,13 +519,15 @@ def main():
             else:
                 # print(f"[info] Reading Suricata fast.log at {args.fast_log}...")
                 blocked_address, user_address = read_fast_log(args.fast_log)
-                #logger.info(f"[info] Parsed blocked IP: {blocked_address}, user IP: {user_address}")
+                # logger.info(f"[info] Parsed blocked IP: {blocked_address}, user IP: {user_address}")
 
             # Report parsed IPs for visibility, but only print headers when there are new matching log lines
             if blocked_address or user_address:
                 if blocked_address:
                     emit_blocked = make_emit_for_ip(blocked_address)
-                    logger.info(f"Checking Zeek logs for blocked IP: {blocked_address}...")
+                    logger.info(
+                        f"Checking Zeek logs for blocked IP: {blocked_address}..."
+                    )
                     check_zeek_logs(
                         blocked_address,
                         args.zeek_logs,
@@ -497,11 +542,11 @@ def main():
                         args.zeek_logs,
                         header=user_address,
                         emit=emit_user,
-                    )            
-            
-            with open(output_path, 'r', encoding='utf-8') as fh:
+                    )
+
+            with open(output_path, "r", encoding="utf-8") as fh:
                 output = fh.read()
-            
+
             if output:
                 logger.info("Sending logs for analysis to Gemini...")
                 try:
@@ -515,9 +560,15 @@ def main():
                         logger.error(f"Error getting response from Gemini: {e}")
                         errstr = str(e)
                         # If Gemini reports a 503/UNAVAILABLE overload, fall back to OpenAI Chat completions
-                        if ("503" in errstr) or ("UNAVAILABLE" in errstr) or ("model is overloaded" in errstr.lower()):
+                        if (
+                            ("503" in errstr)
+                            or ("UNAVAILABLE" in errstr)
+                            or ("model is overloaded" in errstr.lower())
+                        ):
                             try:
-                                logger.info("Gemini unavailable (503). Falling back to OpenAI ChatGPT...")
+                                logger.info(
+                                    "Gemini unavailable (503). Falling back to OpenAI ChatGPT..."
+                                )
                                 response = get_from_chatgpt(user_address, output, info)
                                 logger.info("Used ChatGPT fallback for analysis.")
                             except Exception as e2:
@@ -527,7 +578,9 @@ def main():
                             response = ""
 
                     if response:
-                        response = markdown.markdown(response)  # Convert response to HTML
+                        response = markdown.markdown(
+                            response
+                        )  # Convert response to HTML
                         send_mail(
                             subject="Security Analysis Report",
                             body=response,
@@ -549,5 +602,5 @@ def main():
         print("\nInterrupted. Exiting.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
