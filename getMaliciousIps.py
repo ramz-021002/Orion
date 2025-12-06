@@ -36,3 +36,6 @@ def getMaliciousIps():
         print(f"Error fetching IPs: {str(e)}")
 
     update_suricata_rules(malicious_ips)
+
+if __name__ == "__main__":
+    getMaliciousIps()
